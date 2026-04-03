@@ -183,7 +183,38 @@ public class Terrain : MonoBehaviour
         var go = new GameObject($"TerrainChunk_{index}");
         go.AddComponent<MeshFilter>().sharedMesh = mesh;
         go.AddComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
-        go.AddComponent<MeshCollider>().sharedMesh = mesh;
+
+        // Build EdgeCollider2D runs — one per continuous solid surface segment.
+        // Pits break the surface into multiple disconnected runs, each needing
+        // its own EdgeCollider2D so the 2D physics engine sees them correctly.
+        var currentRun = new List<Vector2>();
+        for (int i = 0; i < xPositions.Count - 1; i++)
+        {
+            float x0  = xPositions[i];
+            float x1  = xPositions[i + 1];
+            float mid = (x0 + x1) * 0.5f;
+
+            if (IsInAnyPit(mid, pits))
+            {
+                if (currentRun.Count >= 2)
+                {
+                    go.AddComponent<EdgeCollider2D>().points = currentRun.ToArray();
+                    currentRun = new List<Vector2>();
+                }
+                else
+                {
+                    currentRun.Clear();
+                }
+            }
+            else
+            {
+                if (currentRun.Count == 0)
+                    currentRun.Add(new Vector2(x0, HeightAt(x0)));
+                currentRun.Add(new Vector2(x1, HeightAt(x1)));
+            }
+        }
+        if (currentRun.Count >= 2)
+            go.AddComponent<EdgeCollider2D>().points = currentRun.ToArray();
 
         return go;
     }
