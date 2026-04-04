@@ -191,6 +191,7 @@ public class TerrainGenerator : MonoBehaviour
         mesh.RecalculateBounds();
 
         var go = new GameObject($"TerrainChunk_{index}");
+        go.layer = LayerMask.NameToLayer("Ground");
         go.AddComponent<MeshFilter>().sharedMesh = mesh;
         go.AddComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
 
