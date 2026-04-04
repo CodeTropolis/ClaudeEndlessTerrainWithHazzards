@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Camera))]
-public class Terrain : MonoBehaviour
+public class TerrainGenerator : MonoBehaviour
 {
     [Header("Chunk Settings")]
     public float chunkWidth = 20f;
@@ -12,6 +12,7 @@ public class Terrain : MonoBehaviour
     [Header("Terrain Shape")]
     public float amplitude = 4f;
     public float frequency = 0.06f;
+    public float terrainYOffset = -5f;
     public float terrainBottom = -12f;
 
     [Header("Pits")]
@@ -42,6 +43,15 @@ public class Terrain : MonoBehaviour
 
     void Update()
     {
+        // Randomize pit zone width and chance over time for more variety. These changes are deterministic
+        // based on noiseSeed, so they won't cause seams across chunk boundaries.
+        float time = Time.time * 0.1f;
+        pitZoneWidth = 40f + (10f * Mathf.PerlinNoise(noiseSeed + 100f, time)); // Vary between X and X+N, always larger than pitMaxWidth.
+        // log pitzonewidth
+        Debug.Log($"pitZoneWidth: {pitZoneWidth}");
+
+        pitChance = 0.4f + (0.4f * Mathf.PerlinNoise(noiseSeed + 200f, time));
+
         int chunkIndex = Mathf.FloorToInt(transform.position.x / chunkWidth);
         if (chunkIndex != lastChunkIndex)
         {
@@ -71,7 +81,7 @@ public class Terrain : MonoBehaviour
 
     float HeightAt(float worldX)
     {
-        return Mathf.PerlinNoise(worldX * frequency + noiseSeed, 0.5f) * amplitude;
+        return Mathf.PerlinNoise(worldX * frequency + noiseSeed, 0.5f) * amplitude + terrainYOffset;
     }
 
     // Deterministic pseudo-random float in [0,1) for a given zone index and slot.
@@ -92,16 +102,16 @@ public class Terrain : MonoBehaviour
         float safeZoneWidth = Mathf.Max(pitZoneWidth, pitMaxWidth + 1f);
 
         int firstZone = Mathf.FloorToInt(queryStart / safeZoneWidth);
-        int lastZone  = Mathf.FloorToInt(queryEnd   / safeZoneWidth);
+        int lastZone = Mathf.FloorToInt(queryEnd / safeZoneWidth);
 
         for (int z = firstZone; z <= lastZone; z++)
         {
             if (PseudoRandom(z, 0) > pitChance) continue;
 
-            float width    = Mathf.Lerp(pitMinWidth, pitMaxWidth, PseudoRandom(z, 2));
-            float offset   = PseudoRandom(z, 1) * (safeZoneWidth - width);
+            float width = Mathf.Lerp(pitMinWidth, pitMaxWidth, PseudoRandom(z, 2));
+            float offset = PseudoRandom(z, 1) * (safeZoneWidth - width);
             float pitStart = z * safeZoneWidth + offset;
-            float pitEnd   = pitStart + width;
+            float pitEnd = pitStart + width;
 
             if (pitEnd > queryStart && pitStart < queryEnd)
                 result.Add((pitStart, pitEnd));
@@ -120,8 +130,8 @@ public class Terrain : MonoBehaviour
     GameObject SpawnChunk(int index)
     {
         float startX = index * chunkWidth;
-        float endX   = startX + chunkWidth;
-        float segW   = chunkWidth / segmentsPerChunk;
+        float endX = startX + chunkWidth;
+        float segW = chunkWidth / segmentsPerChunk;
 
         // Collect pits that overlap this chunk (with a small margin for edge verts)
         var pits = GetPitsInRange(startX - segW, endX + segW);
@@ -134,7 +144,7 @@ public class Terrain : MonoBehaviour
         foreach (var (pitStart, pitEnd) in pits)
         {
             if (pitStart > startX && pitStart < endX) xPositions.Add(pitStart);
-            if (pitEnd   > startX && pitEnd   < endX) xPositions.Add(pitEnd);
+            if (pitEnd > startX && pitEnd < endX) xPositions.Add(pitEnd);
         }
 
         xPositions.Sort();
@@ -147,12 +157,12 @@ public class Terrain : MonoBehaviour
         // Build mesh: each solid segment becomes an independent quad (4 verts, 2 tris).
         // Independent quads avoid shared-vertex issues at pit edges.
         var vertices = new List<Vector3>();
-        var tris     = new List<int>();
+        var tris = new List<int>();
 
         for (int i = 0; i < xPositions.Count - 1; i++)
         {
-            float x0  = xPositions[i];
-            float x1  = xPositions[i + 1];
+            float x0 = xPositions[i];
+            float x1 = xPositions[i + 1];
             float mid = (x0 + x1) * 0.5f;
 
             if (IsInAnyPit(mid, pits)) continue;
@@ -175,7 +185,7 @@ public class Terrain : MonoBehaviour
             return new GameObject($"TerrainChunk_{index}_empty");
 
         var mesh = new Mesh { name = $"TerrainChunk_{index}" };
-        mesh.vertices  = vertices.ToArray();
+        mesh.vertices = vertices.ToArray();
         mesh.triangles = tris.ToArray();
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
@@ -190,8 +200,8 @@ public class Terrain : MonoBehaviour
         var currentRun = new List<Vector2>();
         for (int i = 0; i < xPositions.Count - 1; i++)
         {
-            float x0  = xPositions[i];
-            float x1  = xPositions[i + 1];
+            float x0 = xPositions[i];
+            float x1 = xPositions[i + 1];
             float mid = (x0 + x1) * 0.5f;
 
             if (IsInAnyPit(mid, pits))
