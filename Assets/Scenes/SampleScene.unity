@@ -277,9 +277,9 @@ MonoBehaviour:
   frequency: 0.06
   terrainYOffset: -3
   terrainBottom: -8
-  enablePits: 1
-  pitZoneWidth: 30
-  pitChance: 0.6
+  enablePits: 0
+  pitZoneWidth: 15
+  pitChance: 0.29
   pitMinWidth: 4
   pitMaxWidth: 8
   terrainColor: {r: 0.4433962, g: 0.17113538, b: 0, a: 1}

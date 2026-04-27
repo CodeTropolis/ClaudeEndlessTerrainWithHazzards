@@ -4,7 +4,7 @@ using UnityEngine;
 public class Vehicle : MonoBehaviour
 {
     [Header("Movement")]
-    public float motorTorque = 10f;
+    public float moveForce = 10f;
     public float jumpForce = 12f;
 
     [Header("Ground Check")]
@@ -30,9 +30,15 @@ public class Vehicle : MonoBehaviour
     void FixedUpdate()
     {
         float input = 0f;
-        if (Input.GetKey(KeyCode.RightArrow)) input = -1f; // negative torque rolls right
-        if (Input.GetKey(KeyCode.LeftArrow))  input =  1f;
+        if (Input.GetKey(KeyCode.RightArrow)) input =  1f;
+        if (Input.GetKey(KeyCode.LeftArrow))  input = -1f;
 
-        rb.AddTorque(input * motorTorque);
+        rb.AddForce(new Vector2(input * moveForce, 0f), ForceMode2D.Force);
+
+        // Motor-based movement (wheel torque)
+        // float motorInput = 0f;
+        // if (Input.GetKey(KeyCode.RightArrow)) motorInput = -1f; // negative torque rolls right
+        // if (Input.GetKey(KeyCode.LeftArrow))  motorInput =  1f;
+        // rb.AddTorque(motorInput * motorTorque);
     }
 }
